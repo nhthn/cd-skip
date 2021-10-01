@@ -1,0 +1,6 @@
+https://www.quora.com/Can-a-scratched-CD-still-work-How?share=1
+
+I burned an audio CD containing a sine sweep from 30 Hz to 8000 Hz over 3 minutes.
+I made a single notch in the label side and got a really interesting waveform that skips (single_notch_on_label_side.wav).
+I added more notches. The CD refused to play at first, but on the second try it worked! (four_notches.wav)
+
