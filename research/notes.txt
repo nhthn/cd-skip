@@ -1,6 +1,30 @@
-https://www.quora.com/Can-a-scratched-CD-still-work-How?share=1
+I was inspired by Unfiltered Audio's plugin LO-FI-AF, which contains a number of nonstandard lo-fi distortion effects such as radio interference and low-bitrate MP3s. Of the options, CD skipping caught my eye, and led me to ask the question of how to emulate it.
 
-I burned an audio CD containing a sine sweep from 30 Hz to 8000 Hz over 3 minutes.
-I made a single notch in the label side and got a really interesting waveform that skips (single_notch_on_label_side.wav).
-I added more notches. The CD refused to play at first, but on the second try it worked! (four_notches.wav)
+I burned an audio CD with a linear sine sweep from 30 Hz to 8000 Hz over 5 minutes.
 
+I took a boxcutter and made a notch on the label side of the CD (I tried the reflective side but nothing happened, see https://www.quora.com/Can-a-scratched-CD-still-work-How?share=1). Then I connected the headphone output of the CD player to an audio interface and recorded playback to Audacity. The result is single_notch.wav, which contains skips and clicks.
+
+I added three more notches, and the CD outright refused to play at first, but on the second try it worked (four_notches.wav).
+
+The CD clicks for irregular large skips -- nothing special there -- but evenly-spaced glitches for small forward skips. A glitch generates a waveform which consists of:
+
+- a burst of quasiperiodic noise lasting 90 samples
+- some Nyquist oscillations (alternating samples) for ~110 samples
+- 18 samples noise burst
+- 16 samples Nyquist oscillations
+- 48 samples noise burst
+- a decaying Nyquist oscillation (not important)
+
+The entire glitch seems to be mostly additive with the original signal. Sometimes it is quieter or louder.
+
+The bursts of noise are quasiperiodic with a period of exactly 6 samples. The 6-sample wavetable evolves over time and seems to be related to the input signal. I would simulate it using a random walk on each of the 6 samples.
+
+Glitches are stereo with the right channel happening roughly 150 samples after the left channel. This creates a nice little Haas effect. Glitches are spaced evenly, at approximately 0.134 seconds in between.
+
+In one instance, I encountered a full dropout lasting several seconds. The audio resumed in the same place where it was before the dropout.
+
+The results of this experiment are highly dependent on the CD player. I used a relatively high-end one (it doubles as a Blu-Ray player), and these experiments would likely work better on older and cheaper CD players with worse error correction mechanisms.
+
+---
+
+I ordered a $20 CD player whose Amazon reviews complain of lack of skip protection. That's perfect for us.
