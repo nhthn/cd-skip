@@ -104,19 +104,50 @@ void CDSkip::skip(int position)
 
 Glitch::Glitch(float sampleRate)
     : m_noisePeriod(k_noisePeriod * sampleRate / k_cdSampleRate),
-    m_phase(0)
+    m_phase(0),
+    m_state(GlitchState::Spike)
 {
+    reset();
 }
 
 float Glitch::process(std::minstd_rand& rng)
 {
+    if (m_phase == 0) {
+        std::uniform_int_distribution<> stateDistribution(0, 3);
+        switch (stateDistribution(rng)) {
+        case 0:
+            m_state = GlitchState::Silence;
+            break;
+        case 1:
+            m_state = GlitchState::Noise;
+            break;
+        case 2:
+            m_state = GlitchState::Spike;
+            break;
+        }
+    }
+
     std::uniform_real_distribution<> distribution(0, 1);
 
-    float result;
-    if (m_phase == 0) {
-        result = 1;
-    } else {
-        result = distribution(rng) * 0.1;
+    float out;
+
+    switch (m_state) {
+    case GlitchState::Spike:
+        float result;
+        if (m_phase == 0) {
+            out = 1 - distribution(rng) * 0.1;
+        } else {
+            out = distribution(rng) * 0.1;
+        }
+        break;
+
+    case GlitchState::Noise:
+        out = distribution(rng);
+        break;
+
+    case GlitchState::Silence:
+        out = 0.5 + distribution(rng) * 0.1 - 0.05;
+        break;
     }
 
     m_phase += 1;
@@ -124,7 +155,7 @@ float Glitch::process(std::minstd_rand& rng)
         m_phase = 0;
     }
 
-    return result;
+    return out;
 }
 
 void Glitch::reset()

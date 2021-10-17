@@ -11,9 +11,15 @@ using Stereo = std::pair<float, float>;
 constexpr float k_cdSampleRate = 44100;
 
 // Expressed in samples at 44.1kHz.
-constexpr int k_stereoDelay = 370;
+constexpr int k_stereoDelay = 150;
 constexpr int k_glitchLength = 360;
 constexpr int k_noisePeriod = 6;
+
+enum class GlitchState {
+    Silence,
+    Noise,
+    Spike
+};
 
 class Glitch {
 public:
@@ -24,6 +30,7 @@ public:
 private:
     const int m_noisePeriod;
     int m_phase;
+    GlitchState m_state;
 };
 
 class CDSkip {
