@@ -27,4 +27,105 @@ The results of this experiment are highly dependent on the CD player. I used a r
 
 ---
 
-I ordered a $20 CD player whose Amazon reviews complain of lack of skip protection. That's perfect for us. After running a scratched CD, I got far more interesting results than the expensive CD player.
+I ordered a $20 CD player whose Amazon reviews complain of lack of skip protection. That's perfect for us. After running a scratched CD, I found that the glitches are not fundamentally different from those in the expensive CD player, but far more frequent. I extracted a few glitch samples for analysis, the results of which can be seen in the glitches/ folder.
+
+In glitch_001.wav, the left channel is delayed by 177 samples. The glitch happens simultaneously with a skip. The first half of the glitch depends on audio before the skip, while the second half depends on audio after, if that makes sense.
+
+Left channel:
+- 3 periods of 6-sample quasiperiodic noise
+- 2x:
+    - 6 samples of dc offset
+    - 2 periods of 6-sample quasiperiodic noise
+- 6 samples of dc offset
+- 12 samples sine-wave-like oscillation, period 12 samples
+- 6x, slightly quieter each iteration:
+  - 2 periods of 6-sample quasiperiodic noise
+  - 12 samples sine-wave-like oscillation ("jostled" variant of previous oscillation)
+
+Right channel:
+- 5x, slightly louder each iteration:
+  - 2 periods of 6-sample quasiperiodic noise
+  - 12 samples sine-wave-like oscillation, period 12 samples ("jostled" variant of previous oscillation)
+- 36 samples Nyqist oscillation
+- 24 samples noise, period 12 samples, consisting of one positive sample and 11 negative samples
+- 12 samples quasiperiodic noise, period 6 samples, consisting of one negative sample and 5 positive samples
+- 12 samples noise
+- 2x:
+    - 18 samples quasiperiodic noise, period 6 samples, consisting of one negative sample and 5 positive samples
+    - 6 samples sine-wave-like oscillation, period 6 samples
+- Decaying Nyquist oscillation
+
+It is beginning to sound like a crude Markov chain, even if only first- or zeroth-order, may be a wise approach to emulating this behavior.
+
+glitch_002.wav
+
+Stereo delay: 177 samples?
+
+Left channel:
+- 2x:
+  - 6-sample spike (3 samples ascending, 3 samples descending). Note that the signal here is negative, so the spike could be a sign inversion.
+  - 18 samples dc offset
+- 6 * 8 samples quasiperiodic noise, period 6 samples
+- 2x:
+  - 6 samples positive spike
+  - 18 samples quasiperiod noise that spikes negatively, period 6 samples
+- 5x with decreasing amplitude:
+  - 6 samples positive spike. At this point the original signal is negative
+  - 18 samples silence
+- decaying 6-sample positive spikes
+
+Right channel:
+
+- 4x with increasing amplitude:
+  - 6-sample positive spike. Again the original signal is negative,
+  - 3x 6-sample negative spike.
+- 5x: 6-sample positive spike followed by 18 samples of silence.
+- 40 samples of 6-sample quasiperiodic noise.
+- 18 samples noise.
+- 18 samples quasiperiodic noice that spikes negatively, period 6 samples. At this point the original signal is positive.
+- 6 samples sine-wave like oscillation, period 6 samples
+- 1-sample negative spike followed by 11 positive samples
+- 1-sample negative spike followed by 5 positive samples
+- 1-sample negative spike followed by decaying positive samples
+
+glitch_003.wav
+
+Stereo delay: 145 samples
+
+Left channel:
+- 30 samples period-6 sine wave
+- 18 samples quasiperiodic noise consisting of 1-sample positive spike + 5 negative samples
+- 6 samples period-6 sine wave
+- 36 samples period-6 quasiperiodic noise
+- 1 sample positive spike followed by 5 negative samples
+- 1 sample positive spike followed by 18 negative samples
+- 1 sample positive spike followed by 11 mostly negative samples
+- 12 samples silence
+- 6x with decaying amplitudes:
+  - 12 samples mixed positive/negative spikes
+  - 12 samples silence
+
+Total length ~370 samples
+
+Right channel:
+
+- ~88 samples of 6-sample quasiperiodic noise with increasing amplitude, negative peaks track signal
+- 1 sample positive spike and 5 negative samples
+- 1 sample positive spike and 17 negative samples
+- 1 sample positive spike and 11 mostly negative samples
+- 12 samples silence
+- 5x:
+  - 12 samples mostly alternating positive and negative spikes
+  - 12 samples silence
+- 1 sample positive spike and 5 negative samples (positive spike tracks original signal)
+- 6 samples positive
+- 30 samples noise
+- 1 sample positive spike and 5 negative samples
+- 6 samples positive
+- 2x: 1 sample negative spike and 5 mostly positive samples
+- 2 samples negative spike and 10 mostly positive samples
+- 2x: 1 sample negative spike and 5 mostly positive samples
+- 4-sample negative spike
+- silence
+
+Total length ~370 samples
