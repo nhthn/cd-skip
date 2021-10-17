@@ -6,12 +6,17 @@ import soundfile
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+    import sys
+
+    if len(sys.argv) < 2:
+        print(f"usage: {sys.argv[1]} <input wav file>", file=sys.stderr)
+        exit(0)
 
     start_frequency = 30
     end_frequency = 8000
     duration = 60 * 5
 
-    signal, sample_rate = soundfile.read("four_notches.wav")
+    signal, sample_rate = soundfile.read(sys.argv[1])
     signal = signal[:, 0]
 
     frame_size = int(sample_rate / start_frequency)
