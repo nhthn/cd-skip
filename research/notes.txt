@@ -144,4 +144,4 @@ Length ~358
 
 ---
 
-
+Dropouts are exactly 3973 samples long. 691 (691, 713 from multiple measurements) samples after returning from a dropout, the right channel of a glitch starts. 686 (673, 853, from multiple measurements) samples after the glitch ends on the left channel, return to dropout.
