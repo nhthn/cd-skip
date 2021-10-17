@@ -55,11 +55,14 @@ Right channel:
     - 6 samples sine-wave-like oscillation, period 6 samples
 - Decaying Nyquist oscillation
 
+Total length: 361
+
 It is beginning to sound like a crude Markov chain, even if only first- or zeroth-order, may be a wise approach to emulating this behavior.
 
 glitch_002.wav
 
 Stereo delay: 177 samples?
+Total length: 356
 
 Left channel:
 - 2x:
@@ -87,6 +90,8 @@ Right channel:
 - 1-sample negative spike followed by 11 positive samples
 - 1-sample negative spike followed by 5 positive samples
 - 1-sample negative spike followed by decaying positive samples
+
+---
 
 glitch_003.wav
 
@@ -129,3 +134,14 @@ Right channel:
 - silence
 
 Total length ~370 samples
+
+---
+
+In glitch_005.wav I found something interesting. The glitch is much lower in amplitude, but so is the difference in trajectories of the before/after sine waves. Where they cross, there is no glitch.
+
+The stereo delay is 145 samples.
+Length ~358
+
+---
+
+
