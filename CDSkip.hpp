@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <functional>
 #include <random>
 
@@ -14,6 +13,9 @@ constexpr float k_cdSampleRate = 44100;
 constexpr int k_stereoDelay = 150;
 constexpr int k_glitchLength = 360;
 constexpr int k_noisePeriod = 6;
+constexpr int k_dropoutLength = 3973;
+constexpr int k_samplesBeforeGlitch = 691;
+constexpr int k_samplesAfterGlitch = 686 + k_glitchLength - k_stereoDelay;
 
 enum class GlitchState {
     DC1,
@@ -42,6 +44,12 @@ private:
     int m_phase;
     GlitchState m_state;
     GlitchState2 m_state2;
+};
+
+enum class AutoState {
+    BeforeGlitch,
+    AfterGlitch,
+    Dropout
 };
 
 /** An audio unit that emulates CD skipping on stereo signals. Its behavior is based on
@@ -79,6 +87,9 @@ public:
     /** Enable or disable auto mode, where random skips are added for you. */
     void setAutoMode(bool autoMode) { m_autoMode = autoMode; }
 
+    /** Set the speed of the auto multiplier. */
+    void setAutoModeSpeed(float speed) { m_autoTimeMultiplier = 1 / speed; }
+
 private:
     const float m_sampleRate;
     const int m_bufferLength;
@@ -102,6 +113,9 @@ private:
     int m_leftDelayTimeRemaining;
 
     float m_autoSkipPosition;
+    int m_autoTimeRemaining;
+    AutoState m_autoState;
+    float m_autoTimeMultiplier;
 };
 
 }

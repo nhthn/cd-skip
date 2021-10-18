@@ -24,7 +24,10 @@ CDSkip::CDSkip(float sampleRate, float maxDelay, float* memory)
     m_frozen(false),
     m_cleanMode(false),
     m_autoMode(false),
-    m_autoSkipPosition(-1)
+    m_autoSkipPosition(-1),
+    m_autoTimeRemaining(0),
+    m_autoState(AutoState::Dropout),
+    m_autoTimeMultiplier(1)
 {
     for (int i = 0; i < m_bufferLength; i++) {
         m_bufferLeft[i] = 0;
@@ -44,14 +47,44 @@ Stereo CDSkip::process(Stereo in)
     auto frame = std::make_pair(m_bufferLeft[m_readPosLeft], m_bufferRight[m_readPosRight]);
     auto auxFrame = std::make_pair(m_bufferLeft[m_auxReadPos], m_bufferRight[m_auxReadPos]);
 
-    if (m_autoMode) {
-        std::uniform_real_distribution<> distribution(0.0, 1.0);
-        if (distribution(m_rng) < 1.0 / 10000) {
-            if (m_autoSkipPosition < 0 || distribution(m_rng) < 0.1) {
-                m_autoSkipPosition = static_cast<int>(distribution(m_rng) * m_bufferLength);
+    std::uniform_real_distribution<> distribution(0, 1);
+    if (m_autoMode && m_autoTimeMultiplier != 0) {
+        if (m_autoTimeRemaining == 0) {
+            switch (m_autoState) {
+            case AutoState::BeforeGlitch:
+                if (m_autoSkipPosition < 0 || distribution(m_rng) < 0.1) {
+                    m_autoSkipPosition = static_cast<int>(distribution(m_rng) * m_bufferLength);
+                }
+                skip(m_autoSkipPosition);
+
+                m_autoState = AutoState::AfterGlitch;
+                m_autoTimeRemaining = k_samplesAfterGlitch * m_autoTimeMultiplier;
+                break;
+            case AutoState::AfterGlitch:
+                m_autoState = AutoState::Dropout;
+                // * m_autoTimeMultiplier deliberately omitted to avoid excessively long.
+                // dropouts.
+                if (distribution(m_rng) < 0.2) {
+                    m_autoTimeRemaining = 10 * k_dropoutLength * distribution(m_rng);
+                } else {
+                    m_autoTimeRemaining = k_dropoutLength;
+                }
+                break;
+            case AutoState::Dropout:
+                m_autoState = AutoState::BeforeGlitch;
+                float tmp = distribution(m_rng);
+                if (tmp < 0.05) {
+                    m_autoTimeRemaining = k_samplesBeforeGlitch * 100 * distribution(m_rng) * m_autoTimeMultiplier;
+                } else if (tmp < 0.4) {
+                    m_autoTimeRemaining = k_samplesBeforeGlitch * 10 * distribution(m_rng) * m_autoTimeMultiplier;
+                } else {
+                    m_autoTimeRemaining = k_samplesBeforeGlitch * m_autoTimeMultiplier;
+                }
+                break;
             }
-            skip(m_autoSkipPosition);
         }
+
+        m_autoTimeRemaining -= 1;
     }
 
     float outLeft = frame.first;
@@ -103,6 +136,10 @@ Stereo CDSkip::process(Stereo in)
     m_auxReadPos += 1;
     if (m_auxReadPos >= m_bufferLength) {
         m_auxReadPos = 0;
+    }
+
+    if (m_autoMode && m_autoState == AutoState::Dropout) {
+        return std::make_pair(0.f, 0.f);
     }
 
     return std::make_pair(outLeft, outRight);
