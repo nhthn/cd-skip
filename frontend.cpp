@@ -56,11 +56,12 @@ int main(int argc, char* argv[])
     sf_readf_float(soundFile, audio, frames);
     sf_close(soundFile);
 
-    float maxDelay = 0.3f;
+    float maxDelay = 2.0f;
     int memoryLength = CDSkip::CDSkip::getMemoryLength(sampleRate, maxDelay);
     float* memory = new float[memoryLength];
 
     CDSkip::CDSkip cdSkip(sampleRate, maxDelay, memory);
+    cdSkip.setAutoMode(true);
     for (int i = 0; i < frames; i++) {
         auto out = cdSkip.process(
             std::make_pair(audio[i * channels], audio[i * channels + 1])

@@ -20,7 +20,11 @@ CDSkip::CDSkip(float sampleRate, float maxDelay, float* memory)
     m_rightGlitchTimeRemaining(0),
     m_leftDelayTimeRemaining(0),
     m_glitchLeft(m_sampleRate),
-    m_glitchRight(m_sampleRate)
+    m_glitchRight(m_sampleRate),
+    m_frozen(false),
+    m_cleanMode(false),
+    m_autoMode(false),
+    m_autoSkipPosition(-1)
 {
     for (int i = 0; i < m_bufferLength; i++) {
         m_bufferLeft[i] = 0;
@@ -30,15 +34,24 @@ CDSkip::CDSkip(float sampleRate, float maxDelay, float* memory)
 
 Stereo CDSkip::process(Stereo in)
 {
-    m_bufferLeft[m_writePos] = in.first;
-    m_bufferRight[m_writePos] = in.second;
+    if (!m_frozen) {
+        m_bufferLeft[m_writePos] = in.first;
+        m_bufferRight[m_writePos] = in.second;
+    }
 
+    // Read after writing. That way, by calling skipRelativeToWritePos(0), a zero delay is
+    // achieved.
     auto frame = std::make_pair(m_bufferLeft[m_readPosLeft], m_bufferRight[m_readPosRight]);
     auto auxFrame = std::make_pair(m_bufferLeft[m_auxReadPos], m_bufferRight[m_auxReadPos]);
 
-    std::uniform_real_distribution<> distribution(0.0, 1.0);
-    if (distribution(m_rng) < 1.0 / 10000) {
-        skip(static_cast<int>(distribution(m_rng) * m_bufferLength));
+    if (m_autoMode) {
+        std::uniform_real_distribution<> distribution(0.0, 1.0);
+        if (distribution(m_rng) < 1.0 / 10000) {
+            if (m_autoSkipPosition < 0 || distribution(m_rng) < 0.1) {
+                m_autoSkipPosition = static_cast<int>(distribution(m_rng) * m_bufferLength);
+            }
+            skip(m_autoSkipPosition);
+        }
     }
 
     float outLeft = frame.first;
@@ -70,9 +83,11 @@ Stereo CDSkip::process(Stereo in)
         }
     }
 
-    m_writePos += 1;
-    if (m_writePos >= m_bufferLength) {
-        m_writePos = 0;
+    if (!m_frozen) {
+        m_writePos += 1;
+        if (m_writePos >= m_bufferLength) {
+            m_writePos = 0;
+        }
     }
 
     m_readPosLeft += 1;
@@ -93,51 +108,125 @@ Stereo CDSkip::process(Stereo in)
     return std::make_pair(outLeft, outRight);
 }
 
-void CDSkip::skip(int position)
+void CDSkip::skip(float position)
 {
-    m_auxReadPos = position;
+    if (m_cleanMode) {
+        m_readPosLeft = position;
+        m_readPosRight = position;
+    }
+
+    m_auxReadPos = static_cast<int>(position * m_bufferLength);
+    m_auxReadPos = (m_auxReadPos % m_bufferLength + m_bufferLength) % m_bufferLength;
     m_leftDelayTimeRemaining = k_stereoDelay * m_sampleRate / k_cdSampleRate;
     m_rightGlitchTimeRemaining = k_glitchLength * m_sampleRate / k_cdSampleRate;
     m_glitchLeft.reset();
     m_glitchRight.reset();
 }
 
+void CDSkip::skipRelativeToWritePos(float offsetInSeconds)
+{
+    skip((static_cast<float>(m_writePos) - offsetInSeconds * m_sampleRate) / m_bufferLength);
+}
+
 Glitch::Glitch(float sampleRate)
     : m_noisePeriod(k_noisePeriod * sampleRate / k_cdSampleRate),
     m_phase(0),
-    m_state(GlitchState::Spike)
+    m_state(GlitchState::PositiveSpike),
+    m_state2(GlitchState2::Oscillate24)
 {
     reset();
 }
 
 float Glitch::process(std::minstd_rand& rng)
 {
+    std::uniform_real_distribution<> distribution(0, 1);
+
+    float transitionProbability = 0.05;
     if (m_phase == 0) {
-        std::uniform_int_distribution<> stateDistribution(0, 3);
-        switch (stateDistribution(rng)) {
-        case 0:
-            m_state = GlitchState::Silence;
+        switch (m_state2) {
+        case GlitchState2::Oscillate24:
+            switch (m_state) {
+            case GlitchState::PositiveSpike:
+                if (distribution(rng) < 0.5) {
+                    m_state = GlitchState::DC2;
+                } else {
+                    m_state = GlitchState::Wave;
+                }
+                break;
+            case GlitchState::DC2:
+                m_state = GlitchState::NegativeSpike;
+                break;
+            case GlitchState::Wave:
+                m_state = GlitchState::NegativeSpike;
+                break;
+            case GlitchState::NegativeSpike:
+                m_state = GlitchState::DC1;
+                break;
+            default:
+                m_state = GlitchState::PositiveSpike;
+                if (distribution(rng) < transitionProbability) {
+                    m_state2 = GlitchState2::Oscillate6;
+                }
+                if (distribution(rng) < transitionProbability) {
+                    m_state2 = GlitchState2::Oscillate12;
+                }
+            }
             break;
-        case 1:
-            m_state = GlitchState::Noise;
+        case GlitchState2::Oscillate12:
+            switch (m_state) {
+            case GlitchState::PositiveSpike:
+                m_state = GlitchState::NegativeSpike;
+                break;
+            default:
+                m_state = GlitchState::PositiveSpike;
+                if (distribution(rng) < transitionProbability) {
+                    m_state2 = GlitchState2::Oscillate6;
+                }
+                if (distribution(rng) < transitionProbability) {
+                    m_state2 = GlitchState2::Oscillate24;
+                }
+            }
             break;
-        case 2:
-            m_state = GlitchState::Spike;
+        case GlitchState2::Oscillate6:
+            m_state = GlitchState::Wave;
+            if (distribution(rng) < transitionProbability) {
+                m_state2 = GlitchState2::Oscillate12;
+            }
+            if (distribution(rng) < transitionProbability) {
+                m_state2 = GlitchState2::Oscillate24;
+            }
             break;
         }
     }
 
-    std::uniform_real_distribution<> distribution(0, 1);
-
     float out;
 
     switch (m_state) {
-    case GlitchState::Spike:
-        float result;
+    case GlitchState::DC1:
+        out = 0.5 + distribution(rng) * 0.1 - 0.05;
+        break;
+
+    case GlitchState::DC2:
+        out = distribution(rng) * 0.05;
+        break;
+
+    case GlitchState::DC3:
+        out = 1.0 - distribution(rng) * 0.05;
+        break;
+
+    case GlitchState::PositiveSpike:
         if (m_phase == 0) {
-            out = 1 - distribution(rng) * 0.1;
+            out = 0.9 + 0.1 * distribution(rng);
         } else {
-            out = distribution(rng) * 0.1;
+            out = 0.45 + distribution(rng) * 0.1;
+        }
+        break;
+
+    case GlitchState::NegativeSpike:
+        if (m_phase == 0) {
+            out = 0.1 * distribution(rng);
+        } else {
+            out = 0.45 + distribution(rng) * 0.1;
         }
         break;
 
@@ -145,8 +234,11 @@ float Glitch::process(std::minstd_rand& rng)
         out = distribution(rng);
         break;
 
-    case GlitchState::Silence:
-        out = 0.5 + distribution(rng) * 0.1 - 0.05;
+    case GlitchState::Wave:
+        out = static_cast<float>(m_phase) / (m_noisePeriod / 2);
+        if (out > 1) {
+            out = 2 - out;
+        }
         break;
     }
 
