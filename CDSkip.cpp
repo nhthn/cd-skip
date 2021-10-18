@@ -7,7 +7,7 @@ int CDSkip::getMemoryLength(float sampleRate, float maxDelay)
     return 2 * sampleRate * maxDelay;
 }
 
-CDSkip::CDSkip(float sampleRate, float maxDelay, float* memory)
+CDSkip::CDSkip(float sampleRate, float maxDelay, float* memory, uint32_t seed)
     : m_sampleRate(sampleRate),
     m_bufferLength(sampleRate * maxDelay),
     m_bufferLeft(memory),
@@ -27,7 +27,8 @@ CDSkip::CDSkip(float sampleRate, float maxDelay, float* memory)
     m_autoSkipPosition(-1),
     m_autoTimeRemaining(0),
     m_autoState(AutoState::Dropout),
-    m_autoTimeMultiplier(1)
+    m_autoTimeMultiplier(1),
+    m_rng(seed)
 {
     for (int i = 0; i < m_bufferLength; i++) {
         m_bufferLeft[i] = 0;

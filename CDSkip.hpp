@@ -59,7 +59,7 @@ enum class AutoState {
  */
 class CDSkip {
 public:
-    CDSkip(float sampleRate, float maxDelay, float* memory);
+    CDSkip(float sampleRate, float maxDelay, float* memory, uint32_t seed = 0);
 
     static int getMemoryLength(float sampleRate, float maxDelay);
 
